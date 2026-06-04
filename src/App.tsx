@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, CSSProperties } from "react";
 
 const STORAGE_KEY = "investment-dashboard-v2";
 const HISTORY_KEY = "investment-history-v2";
@@ -9,7 +9,43 @@ const HISTORY_KEY = "investment-history-v2";
 //     These are placeholder values — update them in the app UI
 //     after launching locally.
 // ---------------------------------------------------------------
-const INITIAL_INVESTMENTS = [
+
+interface Investment {
+  id: number;
+  name: string;
+  platform: string;
+  aporte: number;
+  valorActual: number;
+  tipo: string;
+  color: string;
+  updatedAt: string;
+}
+
+interface Snapshot {
+  fecha: string;
+  totalActual: number;
+  totalAporte: number;
+  ganancia: number;
+  pct: number;
+}
+
+type ModalState =
+  | { type: "valor"; inv: Investment }
+  | { type: "aporte"; inv: Investment }
+  | { type: "add" }
+  | { type: "remove"; inv: Investment }
+  | null;
+
+interface NewInvestmentForm {
+  name: string;
+  platform: string;
+  aporte: string;
+  valorActual: string;
+  tipo: string;
+  color: string;
+}
+
+const INITIAL_INVESTMENTS: Investment[] = [
   { id: 1, name: "Global Equity Fund", platform: "Platform A", aporte: 1000000, valorActual: 1200000, tipo: "Alto riesgo", color: "#FF6B35", updatedAt: new Date().toISOString() },
   { id: 2, name: "Fixed Income Fund", platform: "Platform A", aporte: 500000, valorActual: 520000, tipo: "Conservador", color: "#4ECDC4", updatedAt: new Date().toISOString() },
   { id: 3, name: "Balanced Fund", platform: "Platform B", aporte: 300000, valorActual: 340000, tipo: "Moderado", color: "#A8E6CF", updatedAt: new Date().toISOString() },
@@ -17,50 +53,59 @@ const INITIAL_INVESTMENTS = [
   { id: 5, name: "Local Stocks", platform: "Broker", aporte: 100000, valorActual: 108000, tipo: "Acción", color: "#C9B1FF", updatedAt: new Date().toISOString() },
 ];
 
-function formatCLP(n) {
+const TIPOS = ["Alto riesgo", "Moderado", "Conservador", "Acción"] as const;
+const COLORS = ["#FF6B35", "#4ECDC4", "#A8E6CF", "#88D8B0", "#FF8B94", "#C9B1FF", "#FFD93D", "#6BCB77"] as const;
+
+function formatCLP(n: number): string {
   return "$" + Math.round(n).toLocaleString("es-CL");
 }
-function formatPct(n) {
+function formatPct(n: number): string {
   return (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
 }
-function formatDate(iso) {
+function formatDate(iso: string): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-const TIPOS = ["Alto riesgo", "Moderado", "Conservador", "Acción"];
-const COLORS = ["#FF6B35", "#4ECDC4", "#A8E6CF", "#88D8B0", "#FF8B94", "#C9B1FF", "#FFD93D", "#6BCB77"];
+const inputStyle: CSSProperties = { width: "100%", background: "#1A1A28", border: "1px solid #252535", borderRadius: 8, padding: "10px 12px", color: "#E0DDD8", fontSize: 14, fontFamily: "'DM Mono', monospace", outline: "none" };
+const labelStyle: CSSProperties = { fontSize: 10, color: "#555", marginBottom: 5, letterSpacing: 1, textTransform: "uppercase" };
+const primaryBtn: CSSProperties = { width: "100%", padding: "13px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #4ECDC4, #44B8B0)", color: "#0A0A0F", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" };
+const ghostBtn: CSSProperties = { width: "100%", padding: "12px", borderRadius: 10, border: "1px solid #252535", background: "none", color: "#666", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" };
 
 export default function Dashboard() {
-  const [investments, setInvestments] = useState(INITIAL_INVESTMENTS);
-  const [history, setHistory] = useState([]);
-  const [view, setView] = useState("resumen");
-  const [modal, setModal] = useState(null);
-  const [nuevoValor, setNuevoValor] = useState("");
-  const [nuevoAporte, setNuevoAporte] = useState("");
-  const [newInv, setNewInv] = useState({ name: "", platform: "", aporte: "", valorActual: "", tipo: "Moderado", color: "#FF6B35" });
-  const [feedback, setFeedback] = useState("");
-
-  useEffect(() => {
+  const [investments, setInvestments] = useState<Investment[]>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setInvestments(JSON.parse(raw));
-      const rawH = localStorage.getItem(HISTORY_KEY);
-      if (rawH) setHistory(JSON.parse(rawH));
-    } catch (e) {}
-  }, []);
+      if (raw) return JSON.parse(raw) as Investment[];
+    } catch { /* ignore parse errors */ }
+    return INITIAL_INVESTMENTS;
+  });
+  const [history, setHistory] = useState<Snapshot[]>(() => {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (raw) return JSON.parse(raw) as Snapshot[];
+    } catch { /* ignore parse errors */ }
+    return [];
+  });
+  const [view, setView] = useState<"resumen" | "gestionar" | "historial">("resumen");
+  const [modal, setModal] = useState<ModalState>(null);
+  const [nuevoValor, setNuevoValor] = useState("");
+  const [nuevoAporte, setNuevoAporte] = useState("");
+  const [newInv, setNewInv] = useState<NewInvestmentForm>({ name: "", platform: "", aporte: "", valorActual: "", tipo: "Moderado", color: "#FF6B35" });
+  const [feedback, setFeedback] = useState("");
 
-  function persist(updated) {
+  function persist(updated: Investment[]) {
     setInvestments(updated);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* ignore storage errors */ }
   }
 
-  function showFeedback(msg) {
+  function showFeedback(msg: string) {
     setFeedback(msg);
     setTimeout(() => setFeedback(""), 2000);
   }
 
   function handleActualizarValor() {
+    if (modal?.type !== "valor") return;
     const val = parseFloat(nuevoValor);
     if (!val || val <= 0) return;
     const updated = investments.map(inv =>
@@ -73,6 +118,7 @@ export default function Dashboard() {
   }
 
   function handleRegistrarAporte() {
+    if (modal?.type !== "aporte") return;
     const val = parseFloat(nuevoAporte);
     if (!val || val <= 0) return;
     const updated = investments.map(inv =>
@@ -88,7 +134,7 @@ export default function Dashboard() {
 
   function handleAddInvestment() {
     if (!newInv.name || !newInv.aporte) return;
-    const inv = {
+    const inv: Investment = {
       id: Date.now(), name: newInv.name, platform: newInv.platform,
       aporte: parseFloat(newInv.aporte),
       valorActual: parseFloat(newInv.valorActual) || parseFloat(newInv.aporte),
@@ -100,19 +146,19 @@ export default function Dashboard() {
     showFeedback("✓ Inversión agregada");
   }
 
-  function handleRemove(id) {
+  function handleRemove(id: number) {
     persist(investments.filter(i => i.id !== id));
     setModal(null);
     showFeedback("✓ Inversión eliminada");
   }
 
-  function saveSnapshot(invs = investments) {
+  function saveSnapshot(invs: Investment[] = investments) {
     const totalA = invs.reduce((s, i) => s + i.aporte, 0);
     const totalV = invs.reduce((s, i) => s + i.valorActual, 0);
-    const snap = { fecha: new Date().toISOString(), totalActual: totalV, totalAporte: totalA, ganancia: totalV - totalA, pct: ((totalV - totalA) / totalA) * 100 };
+    const snap: Snapshot = { fecha: new Date().toISOString(), totalActual: totalV, totalAporte: totalA, ganancia: totalV - totalA, pct: ((totalV - totalA) / totalA) * 100 };
     setHistory(prev => {
       const newH = [snap, ...prev].slice(0, 24);
-      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(newH)); } catch (e) {}
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(newH)); } catch { /* ignore storage errors */ }
       return newH;
     });
   }
@@ -124,14 +170,10 @@ export default function Dashboard() {
   const barMax = Math.max(...investments.map(i => i.valorActual), 1);
   const tipos = [...new Set(investments.map(i => i.tipo))];
   const byTipo = tipos.map(tipo => ({
-    tipo, color: investments.find(i => i.tipo === tipo)?.color,
+    tipo,
+    color: investments.find(i => i.tipo === tipo)?.color ?? "#888",
     total: investments.filter(i => i.tipo === tipo).reduce((s, i) => s + i.valorActual, 0),
   }));
-
-  const inputStyle = { width: "100%", background: "#1A1A28", border: "1px solid #252535", borderRadius: 8, padding: "10px 12px", color: "#E0DDD8", fontSize: 14, fontFamily: "'DM Mono', monospace", outline: "none" };
-  const labelStyle = { fontSize: 10, color: "#555", marginBottom: 5, letterSpacing: 1, textTransform: "uppercase" };
-  const primaryBtn = { width: "100%", padding: "13px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #4ECDC4, #44B8B0)", color: "#0A0A0F", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" };
-  const ghostBtn = { width: "100%", padding: "12px", borderRadius: 10, border: "1px solid #252535", background: "none", color: "#666", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" };
 
   return (
     <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#E8E6E1", fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif" }}>
@@ -177,7 +219,7 @@ export default function Dashboard() {
                   <p style={{ fontSize: 18, fontFamily: "'DM Mono', monospace" }}>{formatCLP(modal.inv.valorActual)}</p>
                 </div>
                 <p style={labelStyle}>Nuevo valor de mercado ($)</p>
-                <input autoFocus type="number" placeholder={modal.inv.valorActual} value={nuevoValor} onChange={e => setNuevoValor(e.target.value)} style={{ ...inputStyle, marginBottom: 16 }} />
+                <input autoFocus type="number" placeholder={String(modal.inv.valorActual)} value={nuevoValor} onChange={e => setNuevoValor(e.target.value)} style={{ ...inputStyle, marginBottom: 16 }} />
                 {nuevoValor && parseFloat(nuevoValor) > 0 && (
                   <div style={{ background: "#0E1A18", borderRadius: 8, padding: "10px 14px", marginBottom: 16, border: "1px solid #1A2E28" }}>
                     <p style={{ fontSize: 11, color: "#4ECDC4" }}>Rentabilidad actualizada: {formatPct(((parseFloat(nuevoValor) - modal.inv.aporte) / modal.inv.aporte) * 100)}</p>
@@ -200,7 +242,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  {[["Aporte base", formatCLP(modal.inv.aporte)], ["Rentabilidad", formatPct(((modal.inv.valorActual - modal.inv.aporte) / modal.inv.aporte) * 100)]].map(([label, val]) => (
+                  {([["Aporte base", formatCLP(modal.inv.aporte)], ["Rentabilidad", formatPct(((modal.inv.valorActual - modal.inv.aporte) / modal.inv.aporte) * 100)]] as [string, string][]).map(([label, val]) => (
                     <div key={label} style={{ flex: 1, background: "#0E0E18", borderRadius: 10, padding: "12px", border: "1px solid #161622" }}>
                       <p style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>{label}</p>
                       <p style={{ fontSize: 14, fontFamily: "'DM Mono', monospace" }}>{val}</p>
@@ -225,7 +267,7 @@ export default function Dashboard() {
             {modal.type === "add" && (
               <>
                 <p style={{ fontSize: 15, fontWeight: 500, marginBottom: 20 }}>Nueva inversión</p>
-                {[["Nombre del fondo", "name", "text", "Ej: Global Equity Fund"], ["Plataforma", "platform", "text", "Ej: Fintual"], ["Aporte inicial ($)", "aporte", "number", "100000"], ["Valor actual ($)", "valorActual", "number", "Dejar vacío si igual al aporte"]].map(([label, key, type, ph]) => (
+                {([ ["Nombre del fondo", "name", "text", "Ej: Global Equity Fund"], ["Plataforma", "platform", "text", "Ej: Fintual"], ["Aporte inicial ($)", "aporte", "number", "100000"], ["Valor actual ($)", "valorActual", "number", "Dejar vacío si igual al aporte"] ] as [string, keyof NewInvestmentForm, string, string][]).map(([label, key, type, ph]) => (
                   <div key={key} style={{ marginBottom: 12 }}>
                     <p style={labelStyle}>{label}</p>
                     <input type={type} placeholder={ph} value={newInv[key]} onChange={e => setNewInv({ ...newInv, [key]: e.target.value })} style={inputStyle} />
@@ -284,7 +326,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 3, background: "#0E0E16", borderRadius: 10, padding: 3 }}>
-          {[["resumen", "Resumen"], ["gestionar", "Gestionar"], ["historial", "Historial"]].map(([v, label]) => (
+          {([ ["resumen", "Resumen"], ["gestionar", "Gestionar"], ["historial", "Historial"] ] as ["resumen" | "gestionar" | "historial", string][]).map(([v, label]) => (
             <button key={v} onClick={() => setView(v)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", background: view === v ? "#1E1E2E" : "transparent", color: view === v ? "#E8E6E1" : "#555", transition: "all 0.2s" }}>{label}</button>
           ))}
         </div>
@@ -362,7 +404,7 @@ export default function Dashboard() {
                       <button onClick={() => setModal({ type: "remove", inv })} style={{ background: "none", border: "none", color: "#333", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "2px 6px" }}>×</button>
                     </div>
                     <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                      {[["Base", formatCLP(inv.aporte), "#555"], ["Actual", formatCLP(inv.valorActual), "#E0DDD8"], ["Rent.", formatPct(pct), pct >= 0 ? "#4ECDC4" : "#FF6B6B"]].map(([label, val, color]) => (
+                      {([ ["Base", formatCLP(inv.aporte), "#555"], ["Actual", formatCLP(inv.valorActual), "#E0DDD8"], ["Rent.", formatPct(pct), pct >= 0 ? "#4ECDC4" : "#FF6B6B"] ] as [string, string, string][]).map(([label, val, color]) => (
                         <div key={label} style={{ flex: 1, background: "#0A0A12", borderRadius: 8, padding: "8px 10px" }}>
                           <p style={{ fontSize: 9, color: "#444", marginBottom: 3 }}>{label}</p>
                           <p style={{ fontSize: 12, color, fontFamily: "'DM Mono', monospace" }}>{val}</p>
@@ -370,7 +412,7 @@ export default function Dashboard() {
                       ))}
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button className="action-pill" onClick={() => { setNuevoValor(inv.valorActual); setModal({ type: "valor", inv }); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #252535", background: "none", color: "#888", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>📈 Actualizar valor</button>
+                      <button className="action-pill" onClick={() => { setNuevoValor(String(inv.valorActual)); setModal({ type: "valor", inv }); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #252535", background: "none", color: "#888", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>📈 Actualizar valor</button>
                       <button className="action-pill" onClick={() => { setNuevoAporte(""); setModal({ type: "aporte", inv }); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #2A2A1A", background: "#1A1A0A", color: "#A8A870", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>➕ Nuevo aporte</button>
                     </div>
                   </div>

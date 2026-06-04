@@ -6,3 +6,6 @@ dist
 
 # Local session context — no subir al repo
 progress.md
+
+# TypeScript build cache
+tsconfig.tsbuildinfo
