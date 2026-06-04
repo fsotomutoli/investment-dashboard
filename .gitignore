@@ -3,3 +3,6 @@ dist
 .env
 .env.local
 .DS_Store
+
+# Local session context — no subir al repo
+progress.md
