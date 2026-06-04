@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect, CSSProperties } from "react";
 
 const STORAGE_KEY = "investment-dashboard-v2";
 const HISTORY_KEY = "investment-history-v2";
@@ -9,7 +9,43 @@ const HISTORY_KEY = "investment-history-v2";
 //     These are placeholder values — update them in the app UI
 //     after launching locally.
 // ---------------------------------------------------------------
-const INITIAL_INVESTMENTS = [
+
+interface Investment {
+  id: number;
+  name: string;
+  platform: string;
+  aporte: number;
+  valorActual: number;
+  tipo: string;
+  color: string;
+  updatedAt: string;
+}
+
+interface Snapshot {
+  fecha: string;
+  totalActual: number;
+  totalAporte: number;
+  ganancia: number;
+  pct: number;
+}
+
+type ModalState =
+  | { type: "valor"; inv: Investment }
+  | { type: "aporte"; inv: Investment }
+  | { type: "add" }
+  | { type: "remove"; inv: Investment }
+  | null;
+
+interface NewInvestmentForm {
+  name: string;
+  platform: string;
+  aporte: string;
+  valorActual: string;
+  tipo: string;
+  color: string;
+}
+
+const INITIAL_INVESTMENTS: Investment[] = [
   { id: 1, name: "Global Equity Fund", platform: "Platform A", aporte: 1000000, valorActual: 1200000, tipo: "Alto riesgo", color: "#FF6B35", updatedAt: new Date().toISOString() },
   { id: 2, name: "Fixed Income Fund", platform: "Platform A", aporte: 500000, valorActual: 520000, tipo: "Conservador", color: "#4ECDC4", updatedAt: new Date().toISOString() },
   { id: 3, name: "Balanced Fund", platform: "Platform B", aporte: 300000, valorActual: 340000, tipo: "Moderado", color: "#A8E6CF", updatedAt: new Date().toISOString() },
@@ -17,52 +53,97 @@ const INITIAL_INVESTMENTS = [
   { id: 5, name: "Local Stocks", platform: "Broker", aporte: 100000, valorActual: 108000, tipo: "Acción", color: "#C9B1FF", updatedAt: new Date().toISOString() },
 ];
 
-function formatCLP(n) {
+const TIPOS = ["Alto riesgo", "Moderado", "Conservador", "Acción"] as const;
+const COLORS = ["#FF6B35", "#4ECDC4", "#A8E6CF", "#88D8B0", "#FF8B94", "#C9B1FF", "#FFD93D", "#6BCB77"] as const;
+
+function formatCLP(n: number): string {
   return "$" + Math.round(n).toLocaleString("es-CL");
 }
-function formatPct(n) {
+function formatPct(n: number): string {
   return (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
 }
-function formatDate(iso) {
+function formatDate(iso: string): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
 }
+function calcPct(valorActual: number, aporte: number): number {
+  return aporte > 0 ? ((valorActual - aporte) / aporte) * 100 : 0;
+}
 
-const TIPOS = ["Alto riesgo", "Moderado", "Conservador", "Acción"];
-const COLORS = ["#FF6B35", "#4ECDC4", "#A8E6CF", "#88D8B0", "#FF8B94", "#C9B1FF", "#FFD93D", "#6BCB77"];
+function isValidInvestment(v: unknown): v is Investment {
+  if (!v || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  return (
+    Number.isInteger(o.id) && (o.id as number) > 0 &&
+    typeof o.name === "string" &&
+    typeof o.platform === "string" &&
+    typeof o.aporte === "number" && Number.isFinite(o.aporte) && (o.aporte as number) > 0 &&
+    typeof o.valorActual === "number" && Number.isFinite(o.valorActual) && (o.valorActual as number) >= 0 &&
+    typeof o.tipo === "string" &&
+    typeof o.color === "string" &&
+    typeof o.updatedAt === "string"
+  );
+}
+
+function isValidSnapshot(v: unknown): v is Snapshot {
+  if (!v || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.fecha === "string" &&
+    typeof o.totalActual === "number" && Number.isFinite(o.totalActual) &&
+    typeof o.totalAporte === "number" && Number.isFinite(o.totalAporte) &&
+    typeof o.ganancia === "number" && Number.isFinite(o.ganancia) &&
+    typeof o.pct === "number" && Number.isFinite(o.pct)
+  );
+}
+
+const inputStyle: CSSProperties = { width: "100%", background: "#1A1A28", border: "1px solid #252535", borderRadius: 8, padding: "10px 12px", color: "#E0DDD8", fontSize: 14, fontFamily: "'DM Mono', monospace", outline: "none" };
+const labelStyle: CSSProperties = { fontSize: 10, color: "#555", marginBottom: 5, letterSpacing: 1, textTransform: "uppercase" };
+const primaryBtn: CSSProperties = { width: "100%", padding: "13px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #4ECDC4, #44B8B0)", color: "#0A0A0F", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" };
+const ghostBtn: CSSProperties = { width: "100%", padding: "12px", borderRadius: 10, border: "1px solid #252535", background: "none", color: "#666", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" };
 
 export default function Dashboard() {
-  const [investments, setInvestments] = useState(INITIAL_INVESTMENTS);
-  const [history, setHistory] = useState([]);
-  const [view, setView] = useState("resumen");
-  const [modal, setModal] = useState(null);
+  const [investments, setInvestments] = useState<Investment[]>(() => {
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
+      if (Array.isArray(parsed) && parsed.every(isValidInvestment)) return parsed;
+    } catch { /* ignore parse errors */ }
+    return INITIAL_INVESTMENTS;
+  });
+  const [history, setHistory] = useState<Snapshot[]>(() => {
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "null");
+      if (Array.isArray(parsed) && parsed.every(isValidSnapshot)) return parsed;
+    } catch { /* ignore parse errors */ }
+    return [];
+  });
+  const [view, setView] = useState<"resumen" | "gestionar" | "historial">("resumen");
+  const [modal, setModal] = useState<ModalState>(null);
   const [nuevoValor, setNuevoValor] = useState("");
   const [nuevoAporte, setNuevoAporte] = useState("");
-  const [newInv, setNewInv] = useState({ name: "", platform: "", aporte: "", valorActual: "", tipo: "Moderado", color: "#FF6B35" });
+  const [newInv, setNewInv] = useState<NewInvestmentForm>({ name: "", platform: "", aporte: "", valorActual: "", tipo: "Moderado", color: "#FF6B35" });
   const [feedback, setFeedback] = useState("");
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setInvestments(JSON.parse(raw));
-      const rawH = localStorage.getItem(HISTORY_KEY);
-      if (rawH) setHistory(JSON.parse(rawH));
-    } catch (e) {}
+    return () => { if (feedbackTimer.current) clearTimeout(feedbackTimer.current); };
   }, []);
 
-  function persist(updated) {
+  function persist(updated: Investment[]) {
     setInvestments(updated);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch (e) {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* ignore storage errors */ }
   }
 
-  function showFeedback(msg) {
+  function showFeedback(msg: string) {
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     setFeedback(msg);
-    setTimeout(() => setFeedback(""), 2000);
+    feedbackTimer.current = setTimeout(() => setFeedback(""), 2000);
   }
 
   function handleActualizarValor() {
+    if (modal?.type !== "valor") return;
     const val = parseFloat(nuevoValor);
-    if (!val || val <= 0) return;
+    if (!Number.isFinite(val) || val <= 0) return;
     const updated = investments.map(inv =>
       inv.id === modal.inv.id ? { ...inv, valorActual: val, updatedAt: new Date().toISOString() } : inv
     );
@@ -73,8 +154,9 @@ export default function Dashboard() {
   }
 
   function handleRegistrarAporte() {
+    if (modal?.type !== "aporte") return;
     const val = parseFloat(nuevoAporte);
-    if (!val || val <= 0) return;
+    if (!Number.isFinite(val) || val <= 0) return;
     const updated = investments.map(inv =>
       inv.id === modal.inv.id
         ? { ...inv, aporte: inv.aporte + val, valorActual: inv.valorActual + val, updatedAt: new Date().toISOString() }
@@ -87,11 +169,16 @@ export default function Dashboard() {
   }
 
   function handleAddInvestment() {
-    if (!newInv.name || !newInv.aporte) return;
-    const inv = {
-      id: Date.now(), name: newInv.name, platform: newInv.platform,
-      aporte: parseFloat(newInv.aporte),
-      valorActual: parseFloat(newInv.valorActual) || parseFloat(newInv.aporte),
+    const aporteVal = parseFloat(newInv.aporte);
+    if (!newInv.name.trim() || !Number.isFinite(aporteVal) || aporteVal <= 0) return;
+    const valorActualRaw = parseFloat(newInv.valorActual);
+    const valorActualVal = Number.isFinite(valorActualRaw) && valorActualRaw > 0 ? valorActualRaw : aporteVal;
+    const inv: Investment = {
+      id: Math.max(...investments.map(i => i.id), 0) + 1,
+      name: newInv.name.trim(),
+      platform: newInv.platform.trim(),
+      aporte: aporteVal,
+      valorActual: valorActualVal,
       tipo: newInv.tipo, color: newInv.color, updatedAt: new Date().toISOString()
     };
     persist([...investments, inv]);
@@ -100,19 +187,19 @@ export default function Dashboard() {
     showFeedback("✓ Inversión agregada");
   }
 
-  function handleRemove(id) {
+  function handleRemove(id: number) {
     persist(investments.filter(i => i.id !== id));
     setModal(null);
     showFeedback("✓ Inversión eliminada");
   }
 
-  function saveSnapshot(invs = investments) {
+  function saveSnapshot(invs: Investment[] = investments) {
     const totalA = invs.reduce((s, i) => s + i.aporte, 0);
     const totalV = invs.reduce((s, i) => s + i.valorActual, 0);
-    const snap = { fecha: new Date().toISOString(), totalActual: totalV, totalAporte: totalA, ganancia: totalV - totalA, pct: ((totalV - totalA) / totalA) * 100 };
+    const snap: Snapshot = { fecha: new Date().toISOString(), totalActual: totalV, totalAporte: totalA, ganancia: totalV - totalA, pct: totalA === 0 ? 0 : ((totalV - totalA) / totalA) * 100 };
     setHistory(prev => {
       const newH = [snap, ...prev].slice(0, 24);
-      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(newH)); } catch (e) {}
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(newH)); } catch { /* ignore storage errors */ }
       return newH;
     });
   }
@@ -120,18 +207,14 @@ export default function Dashboard() {
   const totalAporte = investments.reduce((s, i) => s + i.aporte, 0);
   const totalActual = investments.reduce((s, i) => s + i.valorActual, 0);
   const gananciaTotal = totalActual - totalAporte;
-  const pctTotal = (gananciaTotal / totalAporte) * 100;
+  const pctTotal = totalAporte > 0 ? (gananciaTotal / totalAporte) * 100 : 0;
   const barMax = Math.max(...investments.map(i => i.valorActual), 1);
   const tipos = [...new Set(investments.map(i => i.tipo))];
   const byTipo = tipos.map(tipo => ({
-    tipo, color: investments.find(i => i.tipo === tipo)?.color,
+    tipo,
+    color: investments.find(i => i.tipo === tipo)?.color ?? "#888",
     total: investments.filter(i => i.tipo === tipo).reduce((s, i) => s + i.valorActual, 0),
   }));
-
-  const inputStyle = { width: "100%", background: "#1A1A28", border: "1px solid #252535", borderRadius: 8, padding: "10px 12px", color: "#E0DDD8", fontSize: 14, fontFamily: "'DM Mono', monospace", outline: "none" };
-  const labelStyle = { fontSize: 10, color: "#555", marginBottom: 5, letterSpacing: 1, textTransform: "uppercase" };
-  const primaryBtn = { width: "100%", padding: "13px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #4ECDC4, #44B8B0)", color: "#0A0A0F", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" };
-  const ghostBtn = { width: "100%", padding: "12px", borderRadius: 10, border: "1px solid #252535", background: "none", color: "#666", cursor: "pointer", fontSize: 13, fontFamily: "'DM Sans', sans-serif" };
 
   return (
     <div style={{ minHeight: "100vh", background: "#0A0A0F", color: "#E8E6E1", fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif" }}>
@@ -177,10 +260,10 @@ export default function Dashboard() {
                   <p style={{ fontSize: 18, fontFamily: "'DM Mono', monospace" }}>{formatCLP(modal.inv.valorActual)}</p>
                 </div>
                 <p style={labelStyle}>Nuevo valor de mercado ($)</p>
-                <input autoFocus type="number" placeholder={modal.inv.valorActual} value={nuevoValor} onChange={e => setNuevoValor(e.target.value)} style={{ ...inputStyle, marginBottom: 16 }} />
+                <input autoFocus type="number" placeholder={String(modal.inv.valorActual)} value={nuevoValor} onChange={e => setNuevoValor(e.target.value)} style={{ ...inputStyle, marginBottom: 16 }} />
                 {nuevoValor && parseFloat(nuevoValor) > 0 && (
                   <div style={{ background: "#0E1A18", borderRadius: 8, padding: "10px 14px", marginBottom: 16, border: "1px solid #1A2E28" }}>
-                    <p style={{ fontSize: 11, color: "#4ECDC4" }}>Rentabilidad actualizada: {formatPct(((parseFloat(nuevoValor) - modal.inv.aporte) / modal.inv.aporte) * 100)}</p>
+                    <p style={{ fontSize: 11, color: "#4ECDC4" }}>Rentabilidad actualizada: {formatPct(calcPct(parseFloat(nuevoValor), modal.inv.aporte))}</p>
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 8 }}>
@@ -200,7 +283,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  {[["Aporte base", formatCLP(modal.inv.aporte)], ["Rentabilidad", formatPct(((modal.inv.valorActual - modal.inv.aporte) / modal.inv.aporte) * 100)]].map(([label, val]) => (
+                  {([["Aporte base", formatCLP(modal.inv.aporte)], ["Rentabilidad", formatPct(calcPct(modal.inv.valorActual, modal.inv.aporte))]] as [string, string][]).map(([label, val]) => (
                     <div key={label} style={{ flex: 1, background: "#0E0E18", borderRadius: 10, padding: "12px", border: "1px solid #161622" }}>
                       <p style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>{label}</p>
                       <p style={{ fontSize: 14, fontFamily: "'DM Mono', monospace" }}>{val}</p>
@@ -211,7 +294,7 @@ export default function Dashboard() {
                 <input autoFocus type="number" placeholder="200000" value={nuevoAporte} onChange={e => setNuevoAporte(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
                 {nuevoAporte && parseFloat(nuevoAporte) > 0 && (
                   <div style={{ background: "#0E1418", borderRadius: 8, padding: "10px 14px", marginBottom: 16, border: "1px solid #2A1A10" }}>
-                    <p style={{ fontSize: 11, color: "#FF8B94", marginBottom: 3 }}>⚠️ Rentabilidad se ajustará a: {formatPct(((modal.inv.valorActual - (modal.inv.aporte + parseFloat(nuevoAporte))) / (modal.inv.aporte + parseFloat(nuevoAporte))) * 100)}</p>
+                    <p style={{ fontSize: 11, color: "#FF8B94", marginBottom: 3 }}>⚠️ Rentabilidad se ajustará a: {formatPct(calcPct(modal.inv.valorActual, modal.inv.aporte + parseFloat(nuevoAporte)))}</p>
                     <p style={{ fontSize: 10, color: "#555" }}>Nuevo aporte base: {formatCLP(modal.inv.aporte + parseFloat(nuevoAporte))}</p>
                   </div>
                 )}
@@ -225,7 +308,7 @@ export default function Dashboard() {
             {modal.type === "add" && (
               <>
                 <p style={{ fontSize: 15, fontWeight: 500, marginBottom: 20 }}>Nueva inversión</p>
-                {[["Nombre del fondo", "name", "text", "Ej: Global Equity Fund"], ["Plataforma", "platform", "text", "Ej: Fintual"], ["Aporte inicial ($)", "aporte", "number", "100000"], ["Valor actual ($)", "valorActual", "number", "Dejar vacío si igual al aporte"]].map(([label, key, type, ph]) => (
+                {([ ["Nombre del fondo", "name", "text", "Ej: Global Equity Fund"], ["Plataforma", "platform", "text", "Ej: Fintual"], ["Aporte inicial ($)", "aporte", "number", "100000"], ["Valor actual ($)", "valorActual", "number", "Dejar vacío si igual al aporte"] ] as [string, keyof NewInvestmentForm, string, string][]).map(([label, key, type, ph]) => (
                   <div key={key} style={{ marginBottom: 12 }}>
                     <p style={labelStyle}>{label}</p>
                     <input type={type} placeholder={ph} value={newInv[key]} onChange={e => setNewInv({ ...newInv, [key]: e.target.value })} style={inputStyle} />
@@ -284,7 +367,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 3, background: "#0E0E16", borderRadius: 10, padding: 3 }}>
-          {[["resumen", "Resumen"], ["gestionar", "Gestionar"], ["historial", "Historial"]].map(([v, label]) => (
+          {([ ["resumen", "Resumen"], ["gestionar", "Gestionar"], ["historial", "Historial"] ] as ["resumen" | "gestionar" | "historial", string][]).map(([v, label]) => (
             <button key={v} onClick={() => setView(v)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, fontFamily: "'DM Sans', sans-serif", background: view === v ? "#1E1E2E" : "transparent", color: view === v ? "#E8E6E1" : "#555", transition: "all 0.2s" }}>{label}</button>
           ))}
         </div>
@@ -297,7 +380,7 @@ export default function Dashboard() {
           <div className="fade-up">
             <div style={{ height: 5, borderRadius: 3, display: "flex", gap: 2, marginBottom: 20, overflow: "hidden" }}>
               {investments.map(inv => (
-                <div key={inv.id} style={{ height: "100%", width: ((inv.valorActual / totalActual) * 100) + "%", background: inv.color, borderRadius: 2 }} />
+                <div key={inv.id} style={{ height: "100%", width: (totalActual > 0 ? (inv.valorActual / totalActual) * 100 : 0) + "%", background: inv.color, borderRadius: 2 }} />
               ))}
             </div>
             <p style={{ fontSize: 10, letterSpacing: 2, color: "#444", textTransform: "uppercase", marginBottom: 10, fontFamily: "'DM Mono', monospace" }}>Por tipo</p>
@@ -309,16 +392,16 @@ export default function Dashboard() {
                     <span style={{ fontSize: 10, color: "#666" }}>{t.tipo}</span>
                   </div>
                   <p style={{ fontSize: 13, fontWeight: 500 }}>{formatCLP(t.total)}</p>
-                  <p style={{ fontSize: 10, color: "#555", fontFamily: "'DM Mono', monospace", marginTop: 2 }}>{((t.total / totalActual) * 100).toFixed(1)}%</p>
+                  <p style={{ fontSize: 10, color: "#555", fontFamily: "'DM Mono', monospace", marginTop: 2 }}>{(totalActual > 0 ? (t.total / totalActual) * 100 : 0).toFixed(1)}%</p>
                 </div>
               ))}
             </div>
             <p style={{ fontSize: 10, letterSpacing: 2, color: "#444", textTransform: "uppercase", marginBottom: 10, fontFamily: "'DM Mono', monospace" }}>Inversiones</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {investments.map(inv => {
-                const pct = ((inv.valorActual - inv.aporte) / inv.aporte) * 100;
+                const pct = calcPct(inv.valorActual, inv.aporte);
                 return (
-                  <div key={inv.id} className="inv-card" onClick={() => setModal({ type: "valor", inv })} style={{ background: "#0E0E18", borderRadius: 12, padding: "14px", border: "1px solid #161622", position: "relative", overflow: "hidden", transition: "background 0.2s", cursor: "pointer" }}>
+                  <div key={inv.id} className="inv-card" onClick={() => { setNuevoValor(""); setModal({ type: "valor", inv }); }} style={{ background: "#0E0E18", borderRadius: 12, padding: "14px", border: "1px solid #161622", position: "relative", overflow: "hidden", transition: "background 0.2s", cursor: "pointer" }}>
                     <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: ((inv.valorActual / barMax) * 100) + "%", background: inv.color + "07", pointerEvents: "none" }} />
                     <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -348,7 +431,7 @@ export default function Dashboard() {
             <p style={{ fontSize: 10, letterSpacing: 2, color: "#444", textTransform: "uppercase", marginBottom: 16, fontFamily: "'DM Mono', monospace" }}>Gestionar inversiones</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
               {investments.map(inv => {
-                const pct = ((inv.valorActual - inv.aporte) / inv.aporte) * 100;
+                const pct = calcPct(inv.valorActual, inv.aporte);
                 return (
                   <div key={inv.id} style={{ background: "#0E0E18", borderRadius: 12, padding: "14px", border: "1px solid #161622" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
@@ -362,7 +445,7 @@ export default function Dashboard() {
                       <button onClick={() => setModal({ type: "remove", inv })} style={{ background: "none", border: "none", color: "#333", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "2px 6px" }}>×</button>
                     </div>
                     <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                      {[["Base", formatCLP(inv.aporte), "#555"], ["Actual", formatCLP(inv.valorActual), "#E0DDD8"], ["Rent.", formatPct(pct), pct >= 0 ? "#4ECDC4" : "#FF6B6B"]].map(([label, val, color]) => (
+                      {([ ["Base", formatCLP(inv.aporte), "#555"], ["Actual", formatCLP(inv.valorActual), "#E0DDD8"], ["Rent.", formatPct(pct), pct >= 0 ? "#4ECDC4" : "#FF6B6B"] ] as [string, string, string][]).map(([label, val, color]) => (
                         <div key={label} style={{ flex: 1, background: "#0A0A12", borderRadius: 8, padding: "8px 10px" }}>
                           <p style={{ fontSize: 9, color: "#444", marginBottom: 3 }}>{label}</p>
                           <p style={{ fontSize: 12, color, fontFamily: "'DM Mono', monospace" }}>{val}</p>
@@ -370,7 +453,7 @@ export default function Dashboard() {
                       ))}
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button className="action-pill" onClick={() => { setNuevoValor(inv.valorActual); setModal({ type: "valor", inv }); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #252535", background: "none", color: "#888", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>📈 Actualizar valor</button>
+                      <button className="action-pill" onClick={() => { setNuevoValor(String(inv.valorActual)); setModal({ type: "valor", inv }); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #252535", background: "none", color: "#888", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>📈 Actualizar valor</button>
                       <button className="action-pill" onClick={() => { setNuevoAporte(""); setModal({ type: "aporte", inv }); }} style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "1px solid #2A2A1A", background: "#1A1A0A", color: "#A8A870", cursor: "pointer", fontSize: 11, fontFamily: "'DM Sans', sans-serif" }}>➕ Nuevo aporte</button>
                     </div>
                   </div>
@@ -391,8 +474,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {history.map((snap, i) => (
-                  <div key={i} style={{ background: "#0E0E18", borderRadius: 10, padding: "14px 16px", border: "1px solid #161622", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                {history.map((snap) => (
+                  <div key={snap.fecha} style={{ background: "#0E0E18", borderRadius: 10, padding: "14px 16px", border: "1px solid #161622", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <p style={{ fontSize: 11, color: "#555", fontFamily: "'DM Mono', monospace", marginBottom: 4 }}>{formatDate(snap.fecha)}</p>
                       <p style={{ fontSize: 17, fontWeight: 500 }}>{formatCLP(snap.totalActual)}</p>
