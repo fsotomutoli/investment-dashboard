@@ -1,4 +1,4 @@
-import { useState, useRef, CSSProperties } from "react";
+import { useState, useRef, useEffect, CSSProperties } from "react";
 
 const STORAGE_KEY = "investment-dashboard-v2";
 const HISTORY_KEY = "investment-history-v2";
@@ -66,15 +66,19 @@ function formatDate(iso: string): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
 }
+function calcPct(valorActual: number, aporte: number): number {
+  return aporte > 0 ? ((valorActual - aporte) / aporte) * 100 : 0;
+}
 
 function isValidInvestment(v: unknown): v is Investment {
   if (!v || typeof v !== "object") return false;
   const o = v as Record<string, unknown>;
   return (
-    typeof o.id === "number" &&
+    Number.isInteger(o.id) && (o.id as number) > 0 &&
     typeof o.name === "string" &&
-    typeof o.aporte === "number" && Number.isFinite(o.aporte) &&
-    typeof o.valorActual === "number" && Number.isFinite(o.valorActual) &&
+    typeof o.platform === "string" &&
+    typeof o.aporte === "number" && Number.isFinite(o.aporte) && (o.aporte as number) > 0 &&
+    typeof o.valorActual === "number" && Number.isFinite(o.valorActual) && (o.valorActual as number) >= 0 &&
     typeof o.tipo === "string" &&
     typeof o.color === "string" &&
     typeof o.updatedAt === "string"
@@ -120,6 +124,10 @@ export default function Dashboard() {
   const [newInv, setNewInv] = useState<NewInvestmentForm>({ name: "", platform: "", aporte: "", valorActual: "", tipo: "Moderado", color: "#FF6B35" });
   const [feedback, setFeedback] = useState("");
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => { if (feedbackTimer.current) clearTimeout(feedbackTimer.current); };
+  }, []);
 
   function persist(updated: Investment[]) {
     setInvestments(updated);
@@ -255,7 +263,7 @@ export default function Dashboard() {
                 <input autoFocus type="number" placeholder={String(modal.inv.valorActual)} value={nuevoValor} onChange={e => setNuevoValor(e.target.value)} style={{ ...inputStyle, marginBottom: 16 }} />
                 {nuevoValor && parseFloat(nuevoValor) > 0 && (
                   <div style={{ background: "#0E1A18", borderRadius: 8, padding: "10px 14px", marginBottom: 16, border: "1px solid #1A2E28" }}>
-                    <p style={{ fontSize: 11, color: "#4ECDC4" }}>Rentabilidad actualizada: {formatPct(((parseFloat(nuevoValor) - modal.inv.aporte) / modal.inv.aporte) * 100)}</p>
+                    <p style={{ fontSize: 11, color: "#4ECDC4" }}>Rentabilidad actualizada: {formatPct(calcPct(parseFloat(nuevoValor), modal.inv.aporte))}</p>
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 8 }}>
@@ -275,7 +283,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  {([["Aporte base", formatCLP(modal.inv.aporte)], ["Rentabilidad", formatPct(((modal.inv.valorActual - modal.inv.aporte) / modal.inv.aporte) * 100)]] as [string, string][]).map(([label, val]) => (
+                  {([["Aporte base", formatCLP(modal.inv.aporte)], ["Rentabilidad", formatPct(calcPct(modal.inv.valorActual, modal.inv.aporte))]] as [string, string][]).map(([label, val]) => (
                     <div key={label} style={{ flex: 1, background: "#0E0E18", borderRadius: 10, padding: "12px", border: "1px solid #161622" }}>
                       <p style={{ fontSize: 10, color: "#555", marginBottom: 4 }}>{label}</p>
                       <p style={{ fontSize: 14, fontFamily: "'DM Mono', monospace" }}>{val}</p>
@@ -286,7 +294,7 @@ export default function Dashboard() {
                 <input autoFocus type="number" placeholder="200000" value={nuevoAporte} onChange={e => setNuevoAporte(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
                 {nuevoAporte && parseFloat(nuevoAporte) > 0 && (
                   <div style={{ background: "#0E1418", borderRadius: 8, padding: "10px 14px", marginBottom: 16, border: "1px solid #2A1A10" }}>
-                    <p style={{ fontSize: 11, color: "#FF8B94", marginBottom: 3 }}>⚠️ Rentabilidad se ajustará a: {formatPct(((modal.inv.valorActual - (modal.inv.aporte + parseFloat(nuevoAporte))) / (modal.inv.aporte + parseFloat(nuevoAporte))) * 100)}</p>
+                    <p style={{ fontSize: 11, color: "#FF8B94", marginBottom: 3 }}>⚠️ Rentabilidad se ajustará a: {formatPct(calcPct(modal.inv.valorActual, modal.inv.aporte + parseFloat(nuevoAporte)))}</p>
                     <p style={{ fontSize: 10, color: "#555" }}>Nuevo aporte base: {formatCLP(modal.inv.aporte + parseFloat(nuevoAporte))}</p>
                   </div>
                 )}
@@ -391,9 +399,9 @@ export default function Dashboard() {
             <p style={{ fontSize: 10, letterSpacing: 2, color: "#444", textTransform: "uppercase", marginBottom: 10, fontFamily: "'DM Mono', monospace" }}>Inversiones</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {investments.map(inv => {
-                const pct = ((inv.valorActual - inv.aporte) / inv.aporte) * 100;
+                const pct = calcPct(inv.valorActual, inv.aporte);
                 return (
-                  <div key={inv.id} className="inv-card" onClick={() => setModal({ type: "valor", inv })} style={{ background: "#0E0E18", borderRadius: 12, padding: "14px", border: "1px solid #161622", position: "relative", overflow: "hidden", transition: "background 0.2s", cursor: "pointer" }}>
+                  <div key={inv.id} className="inv-card" onClick={() => { setNuevoValor(""); setModal({ type: "valor", inv }); }} style={{ background: "#0E0E18", borderRadius: 12, padding: "14px", border: "1px solid #161622", position: "relative", overflow: "hidden", transition: "background 0.2s", cursor: "pointer" }}>
                     <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: ((inv.valorActual / barMax) * 100) + "%", background: inv.color + "07", pointerEvents: "none" }} />
                     <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -423,7 +431,7 @@ export default function Dashboard() {
             <p style={{ fontSize: 10, letterSpacing: 2, color: "#444", textTransform: "uppercase", marginBottom: 16, fontFamily: "'DM Mono', monospace" }}>Gestionar inversiones</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
               {investments.map(inv => {
-                const pct = ((inv.valorActual - inv.aporte) / inv.aporte) * 100;
+                const pct = calcPct(inv.valorActual, inv.aporte);
                 return (
                   <div key={inv.id} style={{ background: "#0E0E18", borderRadius: 12, padding: "14px", border: "1px solid #161622" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
@@ -466,8 +474,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {history.map((snap, i) => (
-                  <div key={i} style={{ background: "#0E0E18", borderRadius: 10, padding: "14px 16px", border: "1px solid #161622", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                {history.map((snap) => (
+                  <div key={snap.fecha} style={{ background: "#0E0E18", borderRadius: 10, padding: "14px 16px", border: "1px solid #161622", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <p style={{ fontSize: 11, color: "#555", fontFamily: "'DM Mono', monospace", marginBottom: 4 }}>{formatDate(snap.fecha)}</p>
                       <p style={{ fontSize: 17, fontWeight: 500 }}>{formatCLP(snap.totalActual)}</p>
