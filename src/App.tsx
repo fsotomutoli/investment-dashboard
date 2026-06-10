@@ -53,13 +53,16 @@ function isValidInvestment(v: unknown): v is Investment {
 function isValidSnapshot(v: unknown): v is Snapshot {
   if (!v || typeof v !== "object") return false;
   const o = v as Record<string, unknown>;
-  return (
-    typeof o.fecha === "string" &&
-    typeof o.totalActual === "number" && Number.isFinite(o.totalActual) &&
-    typeof o.totalAporte === "number" && Number.isFinite(o.totalAporte) &&
-    typeof o.ganancia === "number" && Number.isFinite(o.ganancia) &&
-    typeof o.pct === "number" && Number.isFinite(o.pct)
-  );
+  if (
+    typeof o.fecha !== "string" ||
+    typeof o.totalActual !== "number" || !Number.isFinite(o.totalActual) ||
+    typeof o.totalAporte !== "number" || !Number.isFinite(o.totalAporte) ||
+    typeof o.ganancia !== "number" || !Number.isFinite(o.ganancia) ||
+    typeof o.pct !== "number" || !Number.isFinite(o.pct)
+  ) return false;
+  // investments is optional for backward compat — normalize to [] if missing
+  if (!Array.isArray(o.investments)) o.investments = [];
+  return true;
 }
 
 export default function Dashboard() {
@@ -166,6 +169,12 @@ export default function Dashboard() {
       totalAporte: totalA,
       ganancia: totalV - totalA,
       pct: totalA === 0 ? 0 : ((totalV - totalA) / totalA) * 100,
+      investments: invs.map(inv => ({
+        id: inv.id,
+        name: inv.name,
+        valorActual: inv.valorActual,
+        aporte: inv.aporte,
+      })),
     };
     setHistory(prev => {
       const newH = [snap, ...prev].slice(0, 24);

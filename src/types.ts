@@ -9,12 +9,20 @@ export interface Investment {
   updatedAt: string;
 }
 
+export interface SnapshotInvestment {
+  id: number;
+  name: string;
+  valorActual: number;
+  aporte: number;
+}
+
 export interface Snapshot {
   fecha: string;
   totalActual: number;
   totalAporte: number;
   ganancia: number;
   pct: number;
+  investments: SnapshotInvestment[];
 }
 
 export type ModalState =
