@@ -1,3 +1,4 @@
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import styles from "./ResumenView.module.css";
 import { Investment } from "../types";
 import { MetricCard } from "./MetricCard";
@@ -59,21 +60,45 @@ export function ResumenView({
         ))}
       </div>
 
-      <p className={styles.sectionLabel}>Por tipo</p>
-      <div className={styles.tipoGrid}>
-        {byTipo.map(t => (
-          <div key={t.tipo} className={styles.tipoCard}>
-            <p className={styles.tipoNombre}>
-              <span className={styles.tipoDot} style={{ background: t.color }} />
-              {t.tipo}
-            </p>
-            <p className={styles.tipoTotal}>{formatCLP(t.total)}</p>
-            <p className={styles.tipoPct}>
-              {(totalActual > 0 ? (t.total / totalActual) * 100 : 0).toFixed(1)}%
-            </p>
+      {byTipo.length > 0 && (
+        <div className={styles.distribution}>
+          <div className={styles.donutWrap}>
+            <ResponsiveContainer width="100%" height={160}>
+              <PieChart>
+                <Pie
+                  data={byTipo}
+                  dataKey="total"
+                  nameKey="tipo"
+                  innerRadius={50}
+                  outerRadius={72}
+                  paddingAngle={2}
+                  strokeWidth={0}
+                >
+                  {byTipo.map(t => (
+                    <Cell key={t.tipo} fill={t.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ background: "#12121A", border: "1px solid #1E1E2E", borderRadius: 8, fontSize: 12, color: "#E8E6E1" }}
+                  formatter={val => [typeof val === "number" ? formatCLP(val) : ""]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-        ))}
-      </div>
+          <div className={styles.legend}>
+            {byTipo.map(t => (
+              <div key={t.tipo} className={styles.legendRow}>
+                <span className={styles.legendDot} style={{ background: t.color }} />
+                <span className={styles.legendNombre}>{t.tipo}</span>
+                <span className={styles.legendTotal}>{formatCLP(t.total)}</span>
+                <span className={styles.legendPct}>
+                  {(totalActual > 0 ? (t.total / totalActual) * 100 : 0).toFixed(1)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <p className={styles.sectionLabel}>Inversiones</p>
       <div className={styles.investGrid}>
