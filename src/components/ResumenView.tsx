@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import styles from "./ResumenView.module.css";
 import { Investment, Snapshot } from "../types";
 import { MetricCard } from "./MetricCard";
 import { InvestmentCard } from "./InvestmentCard";
-import { formatCLP, formatPct, formatDate } from "../utils";
+import { formatCLP, formatPct, formatDate, FILTERS, FilterLabel, filterByMonths } from "../utils";
 
 interface ByTipo {
   tipo: string;
@@ -26,7 +27,9 @@ interface ResumenViewProps {
 export function ResumenView({
   investments, history, totalActual, totalAporte, gananciaTotal, pctTotal, byTipo, barMax, onCardClick,
 }: ResumenViewProps) {
-  const trendData = [...history].reverse();
+  const [filter, setFilter] = useState<FilterLabel>("6M");
+  const months = FILTERS.find(f => f.label === filter)!.months;
+  const trendData = filterByMonths([...history].reverse(), months);
   return (
     <div className={styles.view}>
       <div className={styles.metricsRow}>
@@ -105,7 +108,20 @@ export function ResumenView({
 
           {/* Derecha: línea inversión vs balance */}
           <div className={styles.rightPanel}>
-            <p className={styles.chartLabel}>Inversión vs Balance</p>
+            <div className={styles.chartHeader}>
+              <p className={styles.chartLabel}>Inversión vs Balance</p>
+              <div className={styles.filters}>
+                {FILTERS.map(f => (
+                  <button
+                    key={f.label}
+                    className={`${styles.filterBtn} ${filter === f.label ? styles.filterActive : ""}`}
+                    onClick={() => setFilter(f.label)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             {trendData.length >= 2 ? (
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={trendData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>

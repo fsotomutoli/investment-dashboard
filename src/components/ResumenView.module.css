@@ -35,7 +35,7 @@
 /* Donut + line chart */
 .distribution {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 260px 1fr;
   gap: 0;
   margin-bottom: 28px;
   background: var(--bg-card);
@@ -101,13 +101,52 @@
   padding: 16px 16px 8px;
 }
 
+.chartHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .chartLabel {
   font-size: 10px;
   letter-spacing: 2px;
   color: var(--text-dim);
   text-transform: uppercase;
   font-family: var(--font-mono);
-  margin-bottom: 8px;
+}
+
+.filters {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.filterBtn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  transition: all 0.15s;
+}
+
+.filterBtn:hover {
+  color: var(--text-primary);
+}
+
+.filterActive {
+  background: var(--border);
+  color: var(--text-primary);
 }
 
 .chartEmpty {

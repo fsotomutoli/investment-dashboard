@@ -3,23 +3,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianG
 import styles from "./GraficosView.module.css";
 import { Snapshot } from "../types";
 import { MetricCard } from "./MetricCard";
-import { formatCLP, formatPct, formatDate, calcPct } from "../utils";
-
-type FilterLabel = "2M" | "4M" | "6M" | "1A" | "2A";
-
-const FILTERS: { label: FilterLabel; months: number }[] = [
-  { label: "2M", months: 2 },
-  { label: "4M", months: 4 },
-  { label: "6M", months: 6 },
-  { label: "1A", months: 12 },
-  { label: "2A", months: 24 },
-];
-
-function filterByMonths(history: Snapshot[], months: number): Snapshot[] {
-  const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - months);
-  return [...history].reverse().filter(s => new Date(s.fecha) >= cutoff);
-}
+import { formatCLP, formatPct, formatDate, calcPct, FILTERS, FilterLabel, filterByMonths } from "../utils";
 
 interface GraficosViewProps {
   history: Snapshot[];
@@ -28,7 +12,7 @@ interface GraficosViewProps {
 export function GraficosView({ history }: GraficosViewProps) {
   const [filter, setFilter] = useState<FilterLabel>("6M");
   const months = FILTERS.find(f => f.label === filter)!.months;
-  const chartData = filterByMonths(history, months);
+  const chartData = filterByMonths([...history].reverse(), months);
   const hasChart = chartData.length >= 2;
 
   const first = chartData[0];
