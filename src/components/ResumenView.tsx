@@ -64,74 +64,82 @@ export function ResumenView({
 
       {byTipo.length > 0 && (
         <div className={styles.distribution}>
-          <div className={styles.donutWrap}>
-            <ResponsiveContainer width="100%" height={160}>
-              <PieChart>
-                <Pie
-                  data={byTipo}
-                  dataKey="total"
-                  nameKey="tipo"
-                  innerRadius={50}
-                  outerRadius={72}
-                  paddingAngle={2}
-                  strokeWidth={0}
-                >
-                  {byTipo.map(t => (
-                    <Cell key={t.tipo} fill={t.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ background: "#12121A", border: "1px solid #1E1E2E", borderRadius: 8, fontSize: 12, color: "#E8E6E1" }}
-                  formatter={val => [typeof val === "number" ? formatCLP(val) : ""]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          {/* Izquierda: donut + leyenda */}
+          <div className={styles.leftPanel}>
+            <div className={styles.donutWrap}>
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie
+                    data={byTipo}
+                    dataKey="total"
+                    nameKey="tipo"
+                    innerRadius={50}
+                    outerRadius={72}
+                    paddingAngle={2}
+                    strokeWidth={0}
+                  >
+                    {byTipo.map(t => (
+                      <Cell key={t.tipo} fill={t.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: "#12121A", border: "1px solid #1E1E2E", borderRadius: 8, fontSize: 12, color: "#E8E6E1" }}
+                    formatter={val => [typeof val === "number" ? formatCLP(val) : ""]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className={styles.legend}>
+              {byTipo.map(t => (
+                <div key={t.tipo} className={styles.legendRow}>
+                  <span className={styles.legendDot} style={{ background: t.color }} />
+                  <span className={styles.legendNombre}>{t.tipo}</span>
+                  <span className={styles.legendTotal}>{formatCLP(t.total)}</span>
+                  <span className={styles.legendPct}>
+                    {(totalActual > 0 ? (t.total / totalActual) * 100 : 0).toFixed(1)}%
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className={styles.legend}>
-            {byTipo.map(t => (
-              <div key={t.tipo} className={styles.legendRow}>
-                <span className={styles.legendDot} style={{ background: t.color }} />
-                <span className={styles.legendNombre}>{t.tipo}</span>
-                <span className={styles.legendTotal}>{formatCLP(t.total)}</span>
-                <span className={styles.legendPct}>
-                  {(totalActual > 0 ? (t.total / totalActual) * 100 : 0).toFixed(1)}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {trendData.length >= 2 && (
-        <div className={styles.trendCard}>
-          <p className={styles.trendTitle}>Tendencia</p>
-          <ResponsiveContainer width="100%" height={140}>
-            <LineChart data={trendData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
-              <XAxis
-                dataKey="fecha"
-                tickFormatter={formatDate}
-                tick={{ fill: "#555", fontSize: 9, fontFamily: "DM Mono, monospace" }}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tickFormatter={n => "$" + (n / 1_000_000).toFixed(1) + "M"}
-                tick={{ fill: "#555", fontSize: 9, fontFamily: "DM Mono, monospace" }}
-                axisLine={false}
-                tickLine={false}
-                width={48}
-              />
-              <Tooltip
-                contentStyle={{ background: "#12121A", border: "1px solid #1E1E2E", borderRadius: 8, fontSize: 11, color: "#E8E6E1" }}
-                formatter={(val, name) => [typeof val === "number" ? formatCLP(val) : "", name === "totalActual" ? "Valor" : "Base"]}
-                labelFormatter={label => formatDate(String(label))}
-              />
-              <Line type="monotone" dataKey="totalActual" stroke="#4ECDC4" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="totalAporte" stroke="#444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
-            </LineChart>
-          </ResponsiveContainer>
+          {/* Derecha: línea inversión vs balance */}
+          <div className={styles.rightPanel}>
+            <p className={styles.chartLabel}>Inversión vs Balance</p>
+            {trendData.length >= 2 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={trendData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
+                  <XAxis
+                    dataKey="fecha"
+                    tickFormatter={formatDate}
+                    tick={{ fill: "#555", fontSize: 9, fontFamily: "DM Mono, monospace" }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    tickFormatter={n => "$" + (n / 1_000_000).toFixed(1) + "M"}
+                    tick={{ fill: "#555", fontSize: 9, fontFamily: "DM Mono, monospace" }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={48}
+                  />
+                  <Tooltip
+                    contentStyle={{ background: "#12121A", border: "1px solid #1E1E2E", borderRadius: 8, fontSize: 11, color: "#E8E6E1" }}
+                    formatter={(val, name) => [typeof val === "number" ? formatCLP(val) : "", name === "totalActual" ? "Balance" : "Inversión"]}
+                    labelFormatter={label => formatDate(String(label))}
+                  />
+                  <Line type="monotone" dataKey="totalActual" stroke="#4ECDC4" strokeWidth={2} dot={false} name="totalActual" />
+                  <Line type="monotone" dataKey="totalAporte" stroke="#444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" name="totalAporte" />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={styles.chartEmpty}>
+                <p>Actualiza balances para ver la tendencia</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
