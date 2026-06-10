@@ -89,6 +89,24 @@
   text-align: right;
 }
 
+/* Trend chart */
+.trendCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 16px 8px;
+  margin-bottom: 28px;
+}
+
+.trendTitle {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  margin-bottom: 10px;
+}
+
 /* Investment grid */
 .investGrid {
   display: grid;

@@ -1,9 +1,9 @@
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import styles from "./ResumenView.module.css";
-import { Investment } from "../types";
+import { Investment, Snapshot } from "../types";
 import { MetricCard } from "./MetricCard";
 import { InvestmentCard } from "./InvestmentCard";
-import { formatCLP, formatPct } from "../utils";
+import { formatCLP, formatPct, formatDate } from "../utils";
 
 interface ByTipo {
   tipo: string;
@@ -13,6 +13,7 @@ interface ByTipo {
 
 interface ResumenViewProps {
   investments: Investment[];
+  history: Snapshot[];
   totalActual: number;
   totalAporte: number;
   gananciaTotal: number;
@@ -23,8 +24,9 @@ interface ResumenViewProps {
 }
 
 export function ResumenView({
-  investments, totalActual, totalAporte, gananciaTotal, pctTotal, byTipo, barMax, onCardClick,
+  investments, history, totalActual, totalAporte, gananciaTotal, pctTotal, byTipo, barMax, onCardClick,
 }: ResumenViewProps) {
+  const trendData = [...history].reverse();
   return (
     <div className={styles.view}>
       <div className={styles.metricsRow}>
@@ -97,6 +99,39 @@ export function ResumenView({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {trendData.length >= 2 && (
+        <div className={styles.trendCard}>
+          <p className={styles.trendTitle}>Tendencia</p>
+          <ResponsiveContainer width="100%" height={140}>
+            <LineChart data={trendData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
+              <XAxis
+                dataKey="fecha"
+                tickFormatter={formatDate}
+                tick={{ fill: "#555", fontSize: 9, fontFamily: "DM Mono, monospace" }}
+                axisLine={false}
+                tickLine={false}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tickFormatter={n => "$" + (n / 1_000_000).toFixed(1) + "M"}
+                tick={{ fill: "#555", fontSize: 9, fontFamily: "DM Mono, monospace" }}
+                axisLine={false}
+                tickLine={false}
+                width={48}
+              />
+              <Tooltip
+                contentStyle={{ background: "#12121A", border: "1px solid #1E1E2E", borderRadius: 8, fontSize: 11, color: "#E8E6E1" }}
+                formatter={(val, name) => [typeof val === "number" ? formatCLP(val) : "", name === "totalActual" ? "Valor" : "Base"]}
+                labelFormatter={label => formatDate(String(label))}
+              />
+              <Line type="monotone" dataKey="totalActual" stroke="#4ECDC4" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="totalAporte" stroke="#444" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       )}
 

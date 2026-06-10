@@ -1,7 +1,7 @@
 import styles from "./Sidebar.module.css";
 import { formatCLP, formatPct } from "../utils";
 
-type View = "resumen" | "gestionar" | "historial";
+type View = "resumen" | "gestionar" | "graficos" | "historial";
 
 interface SidebarProps {
   view: View;
@@ -14,6 +14,7 @@ interface SidebarProps {
 const NAV_ITEMS: [View, string][] = [
   ["resumen", "Resumen"],
   ["gestionar", "Gestionar"],
+  ["graficos", "Gráficos"],
   ["historial", "Historial"],
 ];
 

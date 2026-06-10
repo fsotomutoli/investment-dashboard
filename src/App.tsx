@@ -8,6 +8,7 @@ import { Toast } from "./components/Toast";
 import { ResumenView } from "./components/ResumenView";
 import { GestionarView } from "./components/GestionarView";
 import { HistorialView } from "./components/HistorialView";
+import { GraficosView } from "./components/GraficosView";
 
 const STORAGE_KEY = "investment-dashboard-v2";
 const HISTORY_KEY = "investment-history-v2";
@@ -27,9 +28,10 @@ const INITIAL_INVESTMENTS: Investment[] = [
   { id: 5, name: "Local Stocks", platform: "Broker", aporte: 100000, valorActual: 108000, tipo: "Acción", color: "#C9B1FF", updatedAt: new Date().toISOString() },
 ];
 
-const NAV_ITEMS: ["resumen" | "gestionar" | "historial", string][] = [
+const NAV_ITEMS: ["resumen" | "gestionar" | "graficos" | "historial", string][] = [
   ["resumen", "Resumen"],
   ["gestionar", "Gestionar"],
+  ["graficos", "Gráficos"],
   ["historial", "Historial"],
 ];
 
@@ -75,7 +77,7 @@ export default function Dashboard() {
     } catch { /* ignore parse errors */ }
     return [];
   });
-  const [view, setView] = useState<"resumen" | "gestionar" | "historial">("resumen");
+  const [view, setView] = useState<"resumen" | "gestionar" | "graficos" | "historial">("resumen");
   const [modal, setModal] = useState<ModalState>(null);
   const [nuevoValor, setNuevoValor] = useState("");
   const [nuevoAporte, setNuevoAporte] = useState("");
@@ -207,6 +209,7 @@ export default function Dashboard() {
         {view === "resumen" && (
           <ResumenView
             investments={investments}
+            history={history}
             totalActual={totalActual}
             totalAporte={totalAporte}
             gananciaTotal={gananciaTotal}
@@ -224,6 +227,9 @@ export default function Dashboard() {
             onRemoveClick={inv => setModal({ type: "remove", inv })}
             onAddClick={() => setModal({ type: "add" })}
           />
+        )}
+        {view === "graficos" && (
+          <GraficosView history={history} />
         )}
         {view === "historial" && (
           <HistorialView history={history} />

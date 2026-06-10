@@ -1,0 +1,125 @@
+.view {
+  animation: fadeUp 0.35s ease forwards;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sectionLabel {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.filters {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+
+.filterBtn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  transition: all 0.15s;
+}
+
+.filterBtn:hover {
+  color: var(--text-primary);
+}
+
+.filterActive {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.chartCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 20px 16px 12px;
+  margin-bottom: 16px;
+}
+
+.chartLegend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.legendLine {
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.legendLineDashed {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  border-top: 2px dashed #444;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.empty {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 48px 24px;
+  text-align: center;
+  border: 1px solid var(--border-subtle);
+}
+
+.emptyTitle {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.emptySub {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .statsRow {
+    grid-template-columns: 1fr;
+  }
+}
