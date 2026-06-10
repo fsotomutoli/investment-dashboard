@@ -1,0 +1,43 @@
+.view {
+  animation: fadeUp 0.35s ease forwards;
+}
+
+.sectionLabel {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  margin-bottom: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.addBtn {
+  width: 100%;
+  padding: 13px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-input);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  transition: all 0.2s;
+}
+
+.addBtn:hover {
+  color: var(--text-primary);
+  border-color: #555;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

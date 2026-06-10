@@ -1,0 +1,105 @@
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 32px 20px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.logo {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  margin-bottom: 24px;
+}
+
+.totalValue {
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: -0.5px;
+  color: #F0EDE8;
+  line-height: 1.2;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+}
+
+.totalPct {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  margin-bottom: 3px;
+}
+
+.totalGanancia {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-bottom: 36px;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin-bottom: 20px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  font-family: var(--font-sans);
+  text-align: left;
+  transition: all 0.15s;
+  width: 100%;
+}
+
+.navItem:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.navItemActive {
+  color: var(--text-primary);
+  background: var(--border-subtle);
+}
+
+.navDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.navItemActive .navDot {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+}

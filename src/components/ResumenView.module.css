@@ -1,0 +1,106 @@
+.view {
+  animation: fadeUp 0.35s ease forwards;
+}
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.sectionLabel {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  margin-bottom: 10px;
+}
+
+.distributionBar {
+  height: 5px;
+  border-radius: 3px;
+  display: flex;
+  gap: 2px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.distributionSegment {
+  height: 100%;
+  border-radius: 2px;
+}
+
+.tipoGrid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.tipoCard {
+  flex: 1 1 auto;
+  min-width: 100px;
+  background: var(--bg-card);
+  border-radius: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+}
+
+.tipoNombre {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.tipoDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tipoTotal {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.tipoPct {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.investGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.hint {
+  font-size: 10px;
+  color: #383838;
+  text-align: center;
+  margin-top: 16px;
+}
+
+@media (max-width: 1100px) {
+  .metricsRow {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .metricsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .investGrid {
+    grid-template-columns: 1fr;
+  }
+}

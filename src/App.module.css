@@ -1,0 +1,94 @@
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-root);
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 36px 40px;
+  min-width: 0;
+}
+
+.mobileHeader {
+  display: none;
+  padding: 20px 0 16px;
+  margin-bottom: 4px;
+}
+
+.mobileLabel {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  margin-bottom: 6px;
+}
+
+.mobileTotal {
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: -0.5px;
+  color: #F0EDE8;
+  margin-bottom: 4px;
+}
+
+.mobilePct {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+
+.mobileNav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  padding: 8px 16px 20px;
+  z-index: 10;
+}
+
+.mobileTabs {
+  display: flex;
+  gap: 3px;
+  background: #0E0E16;
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.mobileTab {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  background: transparent;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.mobileTabActive {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 0 16px 100px;
+  }
+
+  .mobileHeader {
+    display: block;
+  }
+
+  .mobileNav {
+    display: block;
+  }
+}
