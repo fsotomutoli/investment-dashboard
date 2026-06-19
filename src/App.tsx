@@ -9,23 +9,19 @@ import { ResumenView } from "./components/ResumenView";
 import { GestionarView } from "./components/GestionarView";
 import { HistorialView } from "./components/HistorialView";
 import { GraficosView } from "./components/GraficosView";
-
-const STORAGE_KEY = "investment-dashboard-v2";
-const HISTORY_KEY = "investment-history-v2";
+import { loadLocalData, loadData, saveData } from "./storage";
 
 // ---------------------------------------------------------------
-// Configure your investments here.
-// ⚠️  Do NOT commit real financial data to a public repository.
-//     These are placeholder values — update them in the app UI
-//     after launching locally.
+// Demo data — shown at /demo (public, no auth required).
+// ⚠️  Do NOT commit real financial data. Update values in the UI.
 // ---------------------------------------------------------------
 
-const INITIAL_INVESTMENTS: Investment[] = [
-  { id: 1, name: "Global Equity Fund", platform: "Platform A", aporte: 1000000, valorActual: 1200000, tipo: "Alto riesgo", color: "#FF6B35", updatedAt: new Date().toISOString() },
-  { id: 2, name: "Fixed Income Fund", platform: "Platform A", aporte: 500000, valorActual: 520000, tipo: "Conservador", color: "#4ECDC4", updatedAt: new Date().toISOString() },
-  { id: 3, name: "Balanced Fund", platform: "Platform B", aporte: 300000, valorActual: 340000, tipo: "Moderado", color: "#A8E6CF", updatedAt: new Date().toISOString() },
-  { id: 4, name: "Tech Fund", platform: "Platform B", aporte: 200000, valorActual: 260000, tipo: "Alto riesgo", color: "#FF8B94", updatedAt: new Date().toISOString() },
-  { id: 5, name: "Local Stocks", platform: "Broker", aporte: 100000, valorActual: 108000, tipo: "Acción", color: "#C9B1FF", updatedAt: new Date().toISOString() },
+const DEMO_INVESTMENTS: Investment[] = [
+  { id: 1, name: "Fondo Global Equity", platform: "LarrainVial", aporte: 5000000, valorActual: 5850000, tipo: "Alto riesgo", color: "#FF6B35", updatedAt: new Date().toISOString() },
+  { id: 2, name: "Renta Fija CL", platform: "BTG Pactual", aporte: 3000000, valorActual: 3145000, tipo: "Conservador", color: "#4ECDC4", updatedAt: new Date().toISOString() },
+  { id: 3, name: "Fondo Balanceado", platform: "LarrainVial", aporte: 2000000, valorActual: 2210000, tipo: "Moderado", color: "#A8E6CF", updatedAt: new Date().toISOString() },
+  { id: 4, name: "Acciones Nacionales", platform: "Banchile", aporte: 1500000, valorActual: 1960000, tipo: "Alto riesgo", color: "#FF8B94", updatedAt: new Date().toISOString() },
+  { id: 5, name: "Dólar Ahorro", platform: "Santander", aporte: 1000000, valorActual: 1115000, tipo: "Moderado", color: "#C9B1FF", updatedAt: new Date().toISOString() },
 ];
 
 const NAV_ITEMS: ["resumen" | "gestionar" | "graficos" | "historial", string][] = [
@@ -35,51 +31,29 @@ const NAV_ITEMS: ["resumen" | "gestionar" | "graficos" | "historial", string][] 
   ["historial", "Historial"],
 ];
 
-function isValidInvestment(v: unknown): v is Investment {
-  if (!v || typeof v !== "object") return false;
-  const o = v as Record<string, unknown>;
-  return (
-    Number.isInteger(o.id) && (o.id as number) > 0 &&
-    typeof o.name === "string" &&
-    typeof o.platform === "string" &&
-    typeof o.aporte === "number" && Number.isFinite(o.aporte) && (o.aporte as number) > 0 &&
-    typeof o.valorActual === "number" && Number.isFinite(o.valorActual) && (o.valorActual as number) >= 0 &&
-    typeof o.tipo === "string" &&
-    typeof o.color === "string" &&
-    typeof o.updatedAt === "string"
-  );
-}
-
-function isValidSnapshot(v: unknown): v is Snapshot {
-  if (!v || typeof v !== "object") return false;
-  const o = v as Record<string, unknown>;
-  if (
-    typeof o.fecha !== "string" ||
-    typeof o.totalActual !== "number" || !Number.isFinite(o.totalActual) ||
-    typeof o.totalAporte !== "number" || !Number.isFinite(o.totalAporte) ||
-    typeof o.ganancia !== "number" || !Number.isFinite(o.ganancia) ||
-    typeof o.pct !== "number" || !Number.isFinite(o.pct)
-  ) return false;
-  // investments is optional for backward compat — normalize to [] if missing
-  if (!Array.isArray(o.investments)) o.investments = [];
-  return true;
+function buildSnapshot(invs: Investment[], currentHistory: Snapshot[]): Snapshot[] {
+  const totalAporte = invs.reduce((s, i) => s + i.aporte, 0);
+  const totalActual = invs.reduce((s, i) => s + i.valorActual, 0);
+  const snap: Snapshot = {
+    fecha: new Date().toISOString(),
+    totalActual,
+    totalAporte,
+    ganancia: totalActual - totalAporte,
+    pct: totalAporte === 0 ? 0 : ((totalActual - totalAporte) / totalAporte) * 100,
+    investments: invs.map(inv => ({ id: inv.id, name: inv.name, valorActual: inv.valorActual, aporte: inv.aporte })),
+  };
+  return [snap, ...currentHistory].slice(0, 24);
 }
 
 export default function Dashboard() {
-  const [investments, setInvestments] = useState<Investment[]>(() => {
-    try {
-      const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-      if (Array.isArray(parsed) && parsed.every(isValidInvestment)) return parsed;
-    } catch { /* ignore parse errors */ }
-    return INITIAL_INVESTMENTS;
-  });
-  const [history, setHistory] = useState<Snapshot[]>(() => {
-    try {
-      const parsed: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "null");
-      if (Array.isArray(parsed) && parsed.every(isValidSnapshot)) return parsed;
-    } catch { /* ignore parse errors */ }
-    return [];
-  });
+  const isDemo = window.location.pathname === "/demo";
+
+  const [investments, setInvestments] = useState<Investment[]>(() =>
+    isDemo ? DEMO_INVESTMENTS : loadLocalData().investments
+  );
+  const [history, setHistory] = useState<Snapshot[]>(() =>
+    isDemo ? [] : loadLocalData().history
+  );
   const [view, setView] = useState<"resumen" | "gestionar" | "graficos" | "historial">("resumen");
   const [modal, setModal] = useState<ModalState>(null);
   const [nuevoValor, setNuevoValor] = useState("");
@@ -90,14 +64,20 @@ export default function Dashboard() {
   const [feedback, setFeedback] = useState("");
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Load from Sheets on mount (skipped in demo mode)
+  useEffect(() => {
+    if (isDemo) return;
+    const local = loadLocalData();
+    loadData(local).then(({ investments: loadedInv, history: loadedHist }) => {
+      if (loadedInv.length > 0) setInvestments(loadedInv);
+      setHistory(loadedHist);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     return () => { if (feedbackTimer.current) clearTimeout(feedbackTimer.current); };
   }, []);
-
-  function persist(updated: Investment[]) {
-    setInvestments(updated);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* ignore storage errors */ }
-  }
 
   function showFeedback(msg: string) {
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
@@ -105,15 +85,25 @@ export default function Dashboard() {
     feedbackTimer.current = setTimeout(() => setFeedback(""), 2000);
   }
 
+  function persistAll(updatedInv: Investment[], updatedHist: Snapshot[]) {
+    setInvestments(updatedInv);
+    setHistory(updatedHist);
+    if (!isDemo) saveData(updatedInv, updatedHist);
+  }
+
+  function persistInvestments(updatedInv: Investment[]) {
+    setInvestments(updatedInv);
+    if (!isDemo) saveData(updatedInv, history);
+  }
+
   function handleActualizarValor() {
     if (modal?.type !== "valor") return;
     const val = parseFloat(nuevoValor);
     if (!Number.isFinite(val) || val <= 0) return;
-    const updated = investments.map(inv =>
+    const updatedInv = investments.map(inv =>
       inv.id === modal.inv.id ? { ...inv, valorActual: val, updatedAt: new Date().toISOString() } : inv
     );
-    persist(updated);
-    saveSnapshot(updated);
+    persistAll(updatedInv, buildSnapshot(updatedInv, history));
     setModal(null); setNuevoValor("");
     showFeedback("✓ Valor actualizado");
   }
@@ -122,13 +112,12 @@ export default function Dashboard() {
     if (modal?.type !== "aporte") return;
     const val = parseFloat(nuevoAporte);
     if (!Number.isFinite(val) || val <= 0) return;
-    const updated = investments.map(inv =>
+    const updatedInv = investments.map(inv =>
       inv.id === modal.inv.id
         ? { ...inv, aporte: inv.aporte + val, valorActual: inv.valorActual + val, updatedAt: new Date().toISOString() }
         : inv
     );
-    persist(updated);
-    saveSnapshot(updated);
+    persistAll(updatedInv, buildSnapshot(updatedInv, history));
     setModal(null); setNuevoAporte("");
     showFeedback("✓ Aporte registrado");
   }
@@ -148,39 +137,16 @@ export default function Dashboard() {
       color: newInv.color,
       updatedAt: new Date().toISOString(),
     };
-    persist([...investments, inv]);
+    persistInvestments([...investments, inv]);
     setModal(null);
     setNewInv({ name: "", platform: "", aporte: "", valorActual: "", tipo: "Moderado", color: "#FF6B35" });
     showFeedback("✓ Inversión agregada");
   }
 
   function handleRemove(id: number) {
-    persist(investments.filter(i => i.id !== id));
+    persistInvestments(investments.filter(i => i.id !== id));
     setModal(null);
     showFeedback("✓ Inversión eliminada");
-  }
-
-  function saveSnapshot(invs: Investment[] = investments) {
-    const totalA = invs.reduce((s, i) => s + i.aporte, 0);
-    const totalV = invs.reduce((s, i) => s + i.valorActual, 0);
-    const snap: Snapshot = {
-      fecha: new Date().toISOString(),
-      totalActual: totalV,
-      totalAporte: totalA,
-      ganancia: totalV - totalA,
-      pct: totalA === 0 ? 0 : ((totalV - totalA) / totalA) * 100,
-      investments: invs.map(inv => ({
-        id: inv.id,
-        name: inv.name,
-        valorActual: inv.valorActual,
-        aporte: inv.aporte,
-      })),
-    };
-    setHistory(prev => {
-      const newH = [snap, ...prev].slice(0, 24);
-      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(newH)); } catch { /* ignore storage errors */ }
-      return newH;
-    });
   }
 
   const totalAporte = investments.reduce((s, i) => s + i.aporte, 0);
@@ -197,68 +163,76 @@ export default function Dashboard() {
 
   return (
     <div className={styles.layout}>
-      <Sidebar
-        view={view}
-        onViewChange={setView}
-        totalActual={totalActual}
-        gananciaTotal={gananciaTotal}
-        pctTotal={pctTotal}
-      />
-
-      <main className={styles.main}>
-        {/* Mobile-only header */}
-        <div className={styles.mobileHeader}>
-          <p className={styles.mobileLabel}>Portafolio Personal</p>
-          <h1 className={styles.mobileTotal}>{formatCLP(totalActual)}</h1>
-          <p className={styles.mobilePct} style={{ color: pctTotal >= 0 ? "var(--accent)" : "var(--negative)" }}>
-            {formatPct(pctTotal)}
-          </p>
+      {isDemo && (
+        <div className={styles.demoBanner}>
+          Modo Demo — los datos son ficticios
         </div>
+      )}
 
-        {view === "resumen" && (
-          <ResumenView
-            investments={investments}
-            history={history}
-            totalActual={totalActual}
-            totalAporte={totalAporte}
-            gananciaTotal={gananciaTotal}
-            pctTotal={pctTotal}
-            byTipo={byTipo}
-            barMax={barMax}
-            onCardClick={inv => { setNuevoValor(""); setModal({ type: "valor", inv }); }}
-          />
-        )}
-        {view === "gestionar" && (
-          <GestionarView
-            investments={investments}
-            onValorClick={inv => { setNuevoValor(String(inv.valorActual)); setModal({ type: "valor", inv }); }}
-            onAporteClick={inv => { setNuevoAporte(""); setModal({ type: "aporte", inv }); }}
-            onRemoveClick={inv => setModal({ type: "remove", inv })}
-            onAddClick={() => setModal({ type: "add" })}
-          />
-        )}
-        {view === "graficos" && (
-          <GraficosView history={history} />
-        )}
-        {view === "historial" && (
-          <HistorialView history={history} />
-        )}
-      </main>
+      <div className={styles.body}>
+        <Sidebar
+          view={view}
+          onViewChange={setView}
+          totalActual={totalActual}
+          gananciaTotal={gananciaTotal}
+          pctTotal={pctTotal}
+        />
 
-      {/* Mobile-only bottom nav */}
-      <nav className={styles.mobileNav}>
-        <div className={styles.mobileTabs}>
-          {NAV_ITEMS.map(([v, label]) => (
-            <button
-              key={v}
-              className={`${styles.mobileTab} ${view === v ? styles.mobileTabActive : ""}`}
-              onClick={() => setView(v)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </nav>
+        <main className={styles.main}>
+          {/* Mobile-only header */}
+          <div className={styles.mobileHeader}>
+            <p className={styles.mobileLabel}>Portafolio Personal</p>
+            <h1 className={styles.mobileTotal}>{formatCLP(totalActual)}</h1>
+            <p className={styles.mobilePct} style={{ color: pctTotal >= 0 ? "var(--accent)" : "var(--negative)" }}>
+              {formatPct(pctTotal)}
+            </p>
+          </div>
+
+          {view === "resumen" && (
+            <ResumenView
+              investments={investments}
+              history={history}
+              totalActual={totalActual}
+              totalAporte={totalAporte}
+              gananciaTotal={gananciaTotal}
+              pctTotal={pctTotal}
+              byTipo={byTipo}
+              barMax={barMax}
+              onCardClick={inv => { setNuevoValor(""); setModal({ type: "valor", inv }); }}
+            />
+          )}
+          {view === "gestionar" && (
+            <GestionarView
+              investments={investments}
+              onValorClick={inv => { setNuevoValor(String(inv.valorActual)); setModal({ type: "valor", inv }); }}
+              onAporteClick={inv => { setNuevoAporte(""); setModal({ type: "aporte", inv }); }}
+              onRemoveClick={inv => setModal({ type: "remove", inv })}
+              onAddClick={() => setModal({ type: "add" })}
+            />
+          )}
+          {view === "graficos" && (
+            <GraficosView history={history} />
+          )}
+          {view === "historial" && (
+            <HistorialView history={history} />
+          )}
+        </main>
+
+        {/* Mobile-only bottom nav */}
+        <nav className={styles.mobileNav}>
+          <div className={styles.mobileTabs}>
+            {NAV_ITEMS.map(([v, label]) => (
+              <button
+                key={v}
+                className={`${styles.mobileTab} ${view === v ? styles.mobileTabActive : ""}`}
+                onClick={() => setView(v)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </nav>
+      </div>
 
       <Modal
         modal={modal}
