@@ -4,8 +4,9 @@ export const config = {
 };
 
 // Rutas públicas (sin sesión): la vista de login, el demo y sus APIs.
+// El cron lo invoca Vercel (sin cookie); se protege con CRON_SECRET dentro de la función.
 const PUBLIC_PAGES = ["/login", "/demo"];
-const PUBLIC_APIS = ["/api/login", "/api/logout"];
+const PUBLIC_APIS = ["/api/login", "/api/logout", "/api/cron/reminder"];
 
 export default async function middleware(request: Request) {
   const { pathname } = new URL(request.url);
