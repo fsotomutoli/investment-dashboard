@@ -1,38 +1,74 @@
 export const config = {
-  // Skip static build output; everything else (including /api/*) runs the auth check.
-  // /demo is handled in code below so the public-route logic has a single source of truth.
+  // Skip static build output; everything else runs the session check.
   matcher: ["/((?!assets/|favicon\\.ico|vite\\.svg).*)"],
 };
 
-export default function middleware(request: Request) {
+// Rutas públicas (sin sesión): la vista de login, el demo y sus APIs.
+const PUBLIC_PAGES = ["/login", "/demo"];
+const PUBLIC_APIS = ["/api/login", "/api/logout"];
+
+export default async function middleware(request: Request) {
   const { pathname } = new URL(request.url);
 
-  // /demo is public — no auth required
-  if (pathname === "/demo" || pathname.startsWith("/demo/")) {
+  const isPublic =
+    PUBLIC_APIS.includes(pathname) ||
+    PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+
+  const cookie = readCookie(request.headers.get("cookie"), "session");
+  const authed = await verifyToken(cookie, process.env.AUTH_SECRET ?? "");
+
+  if (isPublic) {
+    // Si ya está autenticado y entra a /login, mandarlo al dashboard.
+    if (authed && pathname === "/login") {
+      return Response.redirect(new URL("/", request.url), 302);
+    }
     return;
   }
 
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Basic ")) {
-    const encoded = authHeader.slice(6);
-    const decoded = atob(encoded);
-    const colon = decoded.indexOf(":");
-    if (colon !== -1) {
-      const user = decoded.slice(0, colon);
-      const pass = decoded.slice(colon + 1);
-      if (
-        user === process.env.BASIC_AUTH_USER &&
-        pass === process.env.BASIC_AUTH_PASSWORD
-      ) {
-        return; // authenticated — pass through
-      }
-    }
-  }
+  if (authed) return; // ruta protegida + sesión válida
 
-  return new Response("Unauthorized", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="Investment Dashboard", charset="UTF-8"',
-    },
-  });
+  // No autenticado en ruta protegida.
+  if (pathname.startsWith("/api/")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return Response.redirect(new URL("/login", request.url), 302);
+}
+
+function readCookie(header: string | null, name: string): string {
+  if (!header) return "";
+  for (const part of header.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx === -1) continue;
+    if (part.slice(0, idx).trim() === name) return part.slice(idx + 1).trim();
+  }
+  return "";
+}
+
+// Verifica un token `${exp}.${hmacHex}` firmado con HMAC-SHA256(secret).
+async function verifyToken(token: string, secret: string): Promise<boolean> {
+  if (!token || !secret) return false;
+  const dot = token.lastIndexOf(".");
+  if (dot <= 0) return false;
+  const payload = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  if (!payload || !sig) return false;
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const macBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const expected = [...new Uint8Array(macBuf)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  if (expected !== sig) return false;
+
+  const exp = Number(payload);
+  return Number.isFinite(exp) && exp > Date.now();
 }

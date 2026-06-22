@@ -9,6 +9,7 @@ interface SidebarProps {
   totalActual: number;
   gananciaTotal: number;
   pctTotal: number;
+  onLogout?: () => void;
 }
 
 const NAV_ITEMS: [View, string][] = [
@@ -18,7 +19,7 @@ const NAV_ITEMS: [View, string][] = [
   ["historial", "Historial"],
 ];
 
-export function Sidebar({ view, onViewChange, totalActual, gananciaTotal, pctTotal }: SidebarProps) {
+export function Sidebar({ view, onViewChange, totalActual, gananciaTotal, pctTotal, onLogout }: SidebarProps) {
   return (
     <aside className={styles.sidebar}>
       <p className={styles.logo}>Portafolio Personal</p>
@@ -40,6 +41,11 @@ export function Sidebar({ view, onViewChange, totalActual, gananciaTotal, pctTot
           </button>
         ))}
       </nav>
+      {onLogout && (
+        <button className={styles.logout} onClick={onLogout}>
+          Cerrar sesión
+        </button>
+      )}
     </aside>
   );
 }

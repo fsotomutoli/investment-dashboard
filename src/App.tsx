@@ -9,7 +9,15 @@ import { ResumenView } from "./components/ResumenView";
 import { GestionarView } from "./components/GestionarView";
 import { HistorialView } from "./components/HistorialView";
 import { GraficosView } from "./components/GraficosView";
+import { LoginView } from "./components/LoginView";
 import { loadLocalData, loadData, saveData } from "./storage";
+
+async function logout() {
+  try {
+    await fetch("/api/logout", { method: "POST" });
+  } catch { /* ignore — redirigimos igual */ }
+  window.location.href = "/login";
+}
 
 // ---------------------------------------------------------------
 // Demo data — shown at /demo (public, no auth required).
@@ -46,7 +54,9 @@ function buildSnapshot(invs: Investment[], currentHistory: Snapshot[]): Snapshot
 }
 
 export default function Dashboard() {
-  const isDemo = window.location.pathname === "/demo";
+  const path = window.location.pathname;
+  const isLogin = path === "/login";
+  const isDemo = path === "/demo";
 
   const [investments, setInvestments] = useState<Investment[]>(() =>
     isDemo ? DEMO_INVESTMENTS : loadLocalData().investments
@@ -64,9 +74,9 @@ export default function Dashboard() {
   const [feedback, setFeedback] = useState("");
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load from Sheets on mount (skipped in demo mode)
+  // Load from Sheets on mount (skipped in demo and login views)
   useEffect(() => {
-    if (isDemo) return;
+    if (isDemo || isLogin) return;
     const local = loadLocalData();
     loadData(local).then(({ investments: loadedInv, history: loadedHist }) => {
       if (loadedInv.length > 0) setInvestments(loadedInv);
@@ -161,6 +171,8 @@ export default function Dashboard() {
     total: investments.filter(i => i.tipo === tipo).reduce((s, i) => s + i.valorActual, 0),
   }));
 
+  if (isLogin) return <LoginView />;
+
   return (
     <div className={styles.layout}>
       {isDemo && (
@@ -176,6 +188,7 @@ export default function Dashboard() {
           totalActual={totalActual}
           gananciaTotal={gananciaTotal}
           pctTotal={pctTotal}
+          onLogout={isDemo ? undefined : logout}
         />
 
         <main className={styles.main}>
@@ -186,6 +199,11 @@ export default function Dashboard() {
             <p className={styles.mobilePct} style={{ color: pctTotal >= 0 ? "var(--accent)" : "var(--negative)" }}>
               {formatPct(pctTotal)}
             </p>
+            {!isDemo && (
+              <button className={styles.mobileLogout} onClick={logout}>
+                Cerrar sesión
+              </button>
+            )}
           </div>
 
           {view === "resumen" && (
