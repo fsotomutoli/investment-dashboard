@@ -9,3 +9,4 @@ progress.md
 
 # TypeScript build cache
 tsconfig.tsbuildinfo
+.vercel
