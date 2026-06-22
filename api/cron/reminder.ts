@@ -6,9 +6,8 @@ const DASHBOARD_URL =
 const NUDGE = "Es viernes — hora de actualizar tus balances en el dashboard.";
 
 /**
- * Cron de Vercel (viernes). Envía un recordatorio por email (Resend) y por
- * WhatsApp (CallMeBot). Cada canal es independiente: si uno falla, el otro
- * igual se envía. Los canales sin configurar se omiten silenciosamente.
+ * Cron de Vercel (viernes). Envía un recordatorio por email (Resend) para
+ * actualizar los balances. Si el email no está configurado, se omite.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Solo Vercel Cron (inyecta Authorization: Bearer ${CRON_SECRET} si está seteado).
@@ -19,7 +18,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const results = {
     email: await sendEmail().catch((e) => `error: ${String(e)}`),
-    whatsapp: await sendWhatsApp().catch((e) => `error: ${String(e)}`),
   };
 
   return res.json({ ok: true, results });
@@ -43,21 +41,6 @@ async function sendEmail(): Promise<string> {
         `<p><a href="${DASHBOARD_URL}">Abrir dashboard →</a></p>`,
     }),
   });
-  if (!r.ok) return `error ${r.status}: ${(await r.text()).slice(0, 200)}`;
-  return "enviado";
-}
-
-async function sendWhatsApp(): Promise<string> {
-  const phone = process.env.CALLMEBOT_PHONE;
-  const apikey = process.env.CALLMEBOT_APIKEY;
-  if (!phone || !apikey) return "skipped (sin config)";
-
-  const text = `📊 ${NUDGE} ${DASHBOARD_URL}`;
-  const url =
-    `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(phone)}` +
-    `&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(apikey)}`;
-
-  const r = await fetch(url);
   if (!r.ok) return `error ${r.status}: ${(await r.text()).slice(0, 200)}`;
   return "enviado";
 }
