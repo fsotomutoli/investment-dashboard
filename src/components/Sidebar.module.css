@@ -98,6 +98,25 @@
   opacity: 1;
 }
 
+.logout {
+  margin-top: auto;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.logout:hover {
+  color: var(--negative);
+  border-color: var(--negative);
+}
+
 @media (max-width: 768px) {
   .sidebar {
     display: none;
