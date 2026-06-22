@@ -1,6 +1,7 @@
 export const config = {
-  // Run on all paths except /demo*, /assets/* (Vite build output), and static root files
-  matcher: ["/((?!demo|assets|favicon\\.ico|vite\\.svg).*)"],
+  // Skip static build output; everything else (including /api/*) runs the auth check.
+  // /demo is handled in code below so the public-route logic has a single source of truth.
+  matcher: ["/((?!assets/|favicon\\.ico|vite\\.svg).*)"],
 };
 
 export default function middleware(request: Request) {
